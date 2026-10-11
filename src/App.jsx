@@ -18,46 +18,14 @@ import SmartFeatures from "./SmartFeatures";
 const API_URL = "http://localhost:8080";
 
 const allPages = [
-  {
-    title: "Dashboard",
-    icon: "▦",
-    roles: ["ADMIN", "FACULTY", "STUDENT"],
-  },
-  {
-    title: "Students",
-    icon: "🎓",
-    roles: ["ADMIN", "FACULTY"],
-  },
-  {
-    title: "Faculty",
-    icon: "👨‍🏫",
-    roles: ["ADMIN"],
-  },
-  {
-    title: "Courses",
-    icon: "📚",
-    roles: ["ADMIN", "FACULTY", "STUDENT"],
-  },
-  {
-    title: "Attendance",
-    icon: "📅",
-    roles: ["ADMIN", "FACULTY", "STUDENT"],
-  },
-  {
-    title: "Marks",
-    icon: "📊",
-    roles: ["ADMIN", "FACULTY", "STUDENT"],
-  },
-  {
-    title: "Notices",
-    icon: "📢",
-    roles: ["ADMIN", "FACULTY", "STUDENT"],
-  },
-  {
-    title: "Smart Features",
-    icon: "✨",
-    roles: ["ADMIN", "FACULTY", "STUDENT"],
-  },
+  { title: "Dashboard", icon: "▦", roles: ["ADMIN", "FACULTY", "STUDENT"] },
+  { title: "Students", icon: "🎓", roles: ["ADMIN", "FACULTY"] },
+  { title: "Faculty", icon: "👨‍🏫", roles: ["ADMIN"] },
+  { title: "Courses", icon: "📚", roles: ["ADMIN", "FACULTY", "STUDENT"] },
+  { title: "Attendance", icon: "📅", roles: ["ADMIN", "FACULTY", "STUDENT"] },
+  { title: "Marks", icon: "📊", roles: ["ADMIN", "FACULTY", "STUDENT"] },
+  { title: "Notices", icon: "📢", roles: ["ADMIN", "FACULTY", "STUDENT"] },
+  { title: "Smart Features", icon: "✨", roles: ["ADMIN", "FACULTY", "STUDENT"] },
 ];
 
 function getRole(user) {
@@ -83,7 +51,7 @@ function App() {
   const [summaryError, setSummaryError] = useState("");
   const [busy, setBusy] = useState(false);
 
-  // Authentication screen state
+  // Authentication state
   const [authMode, setAuthMode] = useState("login");
   const [email, setEmail] = useState("");
   const [role, setRole] = useState("STUDENT");
@@ -91,6 +59,13 @@ function App() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [authMessage, setAuthMessage] = useState("");
   const [authError, setAuthError] = useState("");
+
+  // Registration state
+  const [regName, setRegName] = useState("");
+  const [regPhone, setRegPhone] = useState("");
+  const [regDepartment, setRegDepartment] = useState("CSE");
+  const [regDesignation, setRegDesignation] = useState("");
+  const [regEmployeeId, setRegEmployeeId] = useState("");
 
   const currentRole = getRole(user);
 
@@ -125,7 +100,6 @@ function App() {
         throw new Error("Your account has an unsupported role.");
       }
 
-      // Set credentials for protected API requests.
       setApiCredentials(email.trim(), password);
 
       setUser({
@@ -135,12 +109,73 @@ function App() {
       });
 
       setActivePage("Dashboard");
-      setAuthMessage("");
       setPassword("");
     } catch (error) {
       clearApiCredentials();
       setAuthError(
         getErrorMessage(error, error.message || "Unable to sign in.")
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleRegister(event) {
+    event.preventDefault();
+    setAuthError("");
+    setAuthMessage("");
+
+    if (password.length < 8 || password.length > 72) {
+      setAuthError("Password must contain 8–72 characters.");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setAuthError("The passwords do not match.");
+      return;
+    }
+
+    setBusy(true);
+
+    try {
+      const registrationData = {
+        name: regName.trim(),
+        email: email.trim(),
+        password,
+        phone: regPhone.trim(),
+        department: regDepartment.trim(),
+      };
+
+      let endpoint;
+
+      if (role === "FACULTY") {
+        endpoint = "/faculty/register";
+        registrationData.designation = regDesignation.trim();
+        registrationData.employeeId = regEmployeeId.trim();
+      } else {
+        endpoint = "/register";
+        registrationData.role = "STUDENT";
+      }
+
+      await axios.post(`${API_URL}${endpoint}`, registrationData);
+
+      setAuthMessage(
+        "Account created successfully! You can now sign in."
+      );
+      setAuthMode("login");
+      setPassword("");
+      setConfirmPassword("");
+      setRegName("");
+      setRegPhone("");
+      setRegDepartment("CSE");
+      setRegDesignation("");
+      setRegEmployeeId("");
+    } catch (error) {
+      setAuthError(
+        getErrorMessage(
+          error,
+          "Registration failed. Check your details and try again."
+        )
       );
     } finally {
       setBusy(false);
@@ -185,14 +220,12 @@ function App() {
       );
       setPassword("");
       setConfirmPassword("");
-
-      // Move to login after showing the confirmation.
       setAuthMode("login");
     } catch (error) {
       setAuthError(
         getErrorMessage(
           error,
-          "Password update failed. Check that the backend is running and the account email and role are correct."
+          "Password update failed. Check the account details and backend."
         )
       );
     } finally {
@@ -223,7 +256,6 @@ function App() {
     if (user && activePage === "Dashboard") {
       loadDashboardSummary();
     }
-    // The dashboard is refreshed when the logged-in user or page changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, activePage]);
 
@@ -247,12 +279,8 @@ function App() {
   function getSummaryValue(...keys) {
     for (const key of keys) {
       const value = summary?.[key];
-
-      if (value !== undefined && value !== null) {
-        return value;
-      }
+      if (value !== undefined && value !== null) return value;
     }
-
     return "—";
   }
 
@@ -309,11 +337,8 @@ function App() {
             <p>
               Everything you need for your academic journey, all in one place.
             </p>
-            <span className="role-pill">
-              {currentRole || "CAMPUS USER"}
-            </span>
+            <span className="role-pill">{currentRole || "CAMPUS USER"}</span>
           </div>
-
           <div className="welcome-decoration" aria-hidden="true">
             <span>✦</span>
             <span>✧</span>
@@ -326,7 +351,6 @@ function App() {
             <h2>Campus Overview</h2>
             <p>Here is a quick snapshot of your campus.</p>
           </div>
-
           <button
             className="secondary-btn"
             type="button"
@@ -338,17 +362,13 @@ function App() {
         </div>
 
         {summaryError && (
-          <div className="inline-alert error-message">
-            {summaryError}
-          </div>
+          <div className="inline-alert error-message">{summaryError}</div>
         )}
 
         <div className="stats-grid">
           {cards.map((card) => (
             <article className="stat-card" key={card.title}>
-              <div className={`stat-icon ${card.color}`}>
-                {card.icon}
-              </div>
+              <div className={`stat-icon ${card.color}`}>{card.icon}</div>
               <div className="stat-details">
                 <p>{card.title}</p>
                 <h3>{loadingSummary ? "…" : card.value}</h3>
@@ -366,7 +386,6 @@ function App() {
             </div>
             <span className="panel-sparkle">✦</span>
           </div>
-
           <div className="quick-access-grid">
             {visiblePages
               .filter((page) => page.title !== "Dashboard")
@@ -426,7 +445,6 @@ function App() {
         <section className="login-box">
           <div className="brand-mark">CC</div>
           <div className="brand-caption">SMART CAMPUS PLATFORM</div>
-
           <h1>CampusConnect</h1>
           <p className="auth-subtitle">
             One portal for your academic community.
@@ -439,6 +457,13 @@ function App() {
               onClick={() => changeAuthMode("login")}
             >
               Sign In
+            </button>
+            <button
+              type="button"
+              className={authMode === "register" ? "selected" : ""}
+              onClick={() => changeAuthMode("register")}
+            >
+              Create Account
             </button>
             <button
               type="button"
@@ -468,7 +493,7 @@ function App() {
                 id="login-email"
                 type="email"
                 value={email}
-                onChange={(event) => setEmail(event.target.value)}
+                onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
                 autoComplete="username"
                 required
@@ -479,31 +504,125 @@ function App() {
                 id="login-password"
                 type="password"
                 value={password}
-                onChange={(event) => setPassword(event.target.value)}
+                onChange={(e) => setPassword(e.target.value)}
                 placeholder="Enter your password"
                 autoComplete="current-password"
                 required
               />
 
-              <button
-                className="primary-btn"
-                type="submit"
-                disabled={busy}
-              >
+              <button className="primary-btn" type="submit" disabled={busy}>
                 {busy ? "Signing in…" : "Sign In →"}
+              </button>
+            </form>
+          ) : authMode === "register" ? (
+            <form className="auth-form" onSubmit={handleRegister}>
+              <div className="form-heading">
+                <h2>Create Account</h2>
+                <p>Register as a student or faculty member.</p>
+              </div>
+
+              <label htmlFor="reg-role">Account type</label>
+              <select
+                id="reg-role"
+                value={role}
+                onChange={(e) => setRole(e.target.value)}
+              >
+                <option value="STUDENT">Student</option>
+                <option value="FACULTY">Faculty</option>
+              </select>
+
+              <label htmlFor="reg-name">Full name</label>
+              <input
+                id="reg-name"
+                value={regName}
+                onChange={(e) => setRegName(e.target.value)}
+                required
+              />
+
+              <label htmlFor="reg-email">Email address</label>
+              <input
+                id="reg-email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                autoComplete="email"
+                required
+              />
+
+              <label htmlFor="reg-phone">Phone</label>
+              <input
+                id="reg-phone"
+                type="tel"
+                value={regPhone}
+                onChange={(e) => setRegPhone(e.target.value)}
+                required
+              />
+
+              <label htmlFor="reg-department">Department</label>
+              <input
+                id="reg-department"
+                value={regDepartment}
+                onChange={(e) => setRegDepartment(e.target.value)}
+                required
+              />
+
+              {role === "FACULTY" && (
+                <>
+                  <label htmlFor="reg-designation">Designation</label>
+                  <input
+                    id="reg-designation"
+                    value={regDesignation}
+                    onChange={(e) => setRegDesignation(e.target.value)}
+                    required
+                  />
+
+                  <label htmlFor="reg-employee">Employee ID</label>
+                  <input
+                    id="reg-employee"
+                    value={regEmployeeId}
+                    onChange={(e) => setRegEmployeeId(e.target.value)}
+                    required
+                  />
+                </>
+              )}
+
+              <label htmlFor="reg-password">Password</label>
+              <input
+                id="reg-password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                minLength={8}
+                maxLength={72}
+                autoComplete="new-password"
+                required
+              />
+
+              <label htmlFor="reg-confirm">Confirm password</label>
+              <input
+                id="reg-confirm"
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                minLength={8}
+                maxLength={72}
+                autoComplete="new-password"
+                required
+              />
+
+              <button className="primary-btn" type="submit" disabled={busy}>
+                {busy ? "Creating account…" : "Create Account →"}
               </button>
             </form>
           ) : (
             <form className="auth-form" onSubmit={handlePasswordUpdate}>
               <div className="form-heading">
                 <h2>
-                  {authMode === "create"
-                    ? "Create Password"
-                    : "Reset Password"}
+                  {authMode === "create" ? "Create Password" : "Reset Password"}
                 </h2>
                 <p>
-                  Local demo mode: this changes the password of an existing
-                  account. It does not verify account ownership.
+                  This changes the password for an existing account. It does
+                  not verify account ownership.
                 </p>
               </div>
 
@@ -512,8 +631,7 @@ function App() {
                 id="reset-email"
                 type="email"
                 value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                placeholder="Enter your registered email"
+                onChange={(e) => setEmail(e.target.value)}
                 autoComplete="email"
                 required
               />
@@ -522,7 +640,7 @@ function App() {
               <select
                 id="account-role"
                 value={role}
-                onChange={(event) => setRole(event.target.value)}
+                onChange={(e) => setRole(e.target.value)}
               >
                 <option value="STUDENT">Student</option>
                 <option value="FACULTY">Faculty</option>
@@ -534,8 +652,7 @@ function App() {
                 id="new-password"
                 type="password"
                 value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                placeholder="At least 8 characters"
+                onChange={(e) => setPassword(e.target.value)}
                 minLength={8}
                 maxLength={72}
                 autoComplete="new-password"
@@ -547,21 +664,14 @@ function App() {
                 id="confirm-password"
                 type="password"
                 value={confirmPassword}
-                onChange={(event) =>
-                  setConfirmPassword(event.target.value)
-                }
-                placeholder="Enter password again"
+                onChange={(e) => setConfirmPassword(e.target.value)}
                 minLength={8}
                 maxLength={72}
                 autoComplete="new-password"
                 required
               />
 
-              <button
-                className="primary-btn"
-                type="submit"
-                disabled={busy}
-              >
+              <button className="primary-btn" type="submit" disabled={busy}>
                 {busy
                   ? "Please wait…"
                   : authMode === "create"
